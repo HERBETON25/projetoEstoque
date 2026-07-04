@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Estoque </title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <!-- PDF Export - html2pdf -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Excel Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="logged-out">
+  <!-- NOTIFICAÇÕES -->
+  <div id="notification-container"></div>
+
+  <!-- TELA DE LOGIN -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-card-left">
+        <div class="login-card-title">
+          <h2>Faça o seu login</h2>
+          <span class="login-card-dot"></span>
+        </div>
+
+        <form onsubmit="efetuarLogin(event)" class="login-form">
+          <label class="login-label" for="login-usuario">email</label>
+          <input type="text" id="login-usuario" placeholder="Digite seu email" autocomplete="username" required>
+
+          <label class="login-label" for="login-senha">senha</label>
+          <input type="password" id="login-senha" placeholder="Digite sua senha" autocomplete="current-password" required>
+
+          <a href="#" class="login-forgot">esqueci minha senha</a>
+
+          <button type="submit" class="btn btn-primary">Entrar</button>
+        </form>
+
+        <p class="login-register">Ainda não possuo conta.</p>
+      </div>
+      <div class="login-card-right"></div>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE PRODUTO -->
+  <div id="modal-edicao" class="modal" style="display: none;">
+    <div class="modal-content">
+      <span class="modal-close" onclick="cancelarEdicao()">&times;</span>
+      <h2>Editar Produto</h2>
+      <form onsubmit="salvarEdicaoProduto(event)">
+        <input type="hidden" id="edicao-id">
+        <div class="form-group-modal">
+          <label>Código do Produto:</label>
+          <input type="text" id="edicao-codigo" required>
+        </div>
+        <div class="form-group-modal">
+          <label>Nome do Produto:</label>
+          <input type="text" id="edicao-nome" required>
+        </div>
+        <div class="form-group-modal">
+          <label>Estoque:</label>
+          <input type="number" id="edicao-estoque" required min="0">
+        </div>
+        <div class="form-group-modal">
+          <label>Valor Unitário:</label>
+          <input type="number" id="edicao-valor-unitario" required min="0" step="0.01">
+        </div>
+        <div class="modal-buttons">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-secondary" onclick="cancelarEdicao()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE ENTRADA -->
+  <div id="modal-edicao-entrada" class="modal" style="display: none;">
+    <div class="modal-content">
+      <span class="modal-close" onclick="cancelarEdicaoEntrada()">&times;</span>
+      <h2>Editar Entrada</h2>
+      <form onsubmit="salvarEdicaoEntrada(event)">
+        <input type="hidden" id="edicao-entrada-id">
+        <div class="form-group-modal">
+          <label>Produto:</label>
+          <input type="text" id="edicao-entrada-produto" readonly>
+        </div>
+        <div class="form-group-modal">
+          <label>Quantidade:</label>
+          <input type="number" id="edicao-entrada-quantidade" required min="1">
+        </div>
+        <div class="modal-buttons">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-secondary" onclick="cancelarEdicaoEntrada()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE SAÍDA -->
+  <div id="modal-edicao-saida" class="modal" style="display: none;">
+    <div class="modal-content">
+      <span class="modal-close" onclick="cancelarEdicaoSaida()">&times;</span>
+      <h2>Editar Saída</h2>
+      <form onsubmit="salvarEdicaoSaida(event)">
+        <input type="hidden" id="edicao-saida-id">
+        <div class="form-group-modal">
+          <label>Produto:</label>
+          <input type="text" id="edicao-saida-produto" readonly>
+        </div>
+        <div class="form-group-modal">
+          <label>Quantidade:</label>
+          <input type="number" id="edicao-saida-quantidade" required min="1">
+        </div>
+        <div class="modal-buttons">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-secondary" onclick="cancelarEdicaoSaida()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO -->
+  <div id="modal-confirmacao" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+      <h2 style="margin-bottom: 15px;">Confirmar Ação</h2>
+      <p id="confirmacao-mensagem" style="margin-bottom: 20px; font-size: 14px;"></p>
+      <div class="modal-buttons">
+        <button type="button" class="btn btn-primary" onclick="executarConfirmacao()">Confirmar</button>
+        <button type="button" class="btn btn-secondary" onclick="cancelarConfirmacao()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-main">
+    <!-- MENU LATERAL -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>CONTROLE DE ESTOQUE</h2>
+        <div class="header-controls">
+          <button class="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar tema">
+            <i class="fas fa-moon"></i>
+          </button>
+          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+        </div>
+      </div>
+      
+      <nav class="sidebar-menu">
+        <a href="#" class="menu-item active" data-page="dashboard">
+          <i class="fas fa-chart-line"></i> Painel de controle
+        </a>
+        <a href="#" class="menu-item" data-page="produtos">
+          <i class="fas fa-box"></i> Produtos
+        </a>
+        <a href="#" class="menu-item" data-page="entradas">
+          <i class="fas fa-arrow-down"></i> Entradas
+        </a>
+        <a href="#" class="menu-item" data-page="filtro-entradas">
+          <i class="fas fa-filter"></i> Filtro Entradas
+        </a>
+        <a href="#" class="menu-item" data-page="saidas">
+          <i class="fas fa-arrow-up"></i> Saídas
+        </a>
+        <a href="#" class="menu-item" data-page="filtro-saidas">
+          <i class="fas fa-filter"></i> Filtro Saídas
+        </a>
+        <a href="#" class="menu-item" data-page="relatorio">
+          <i class="fas fa-file-alt"></i> Relatório
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <img src="https://via.placeholder.com/50" alt="Usuário">
+      </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="main-content">
+      <!-- BARRA DE BUSCA GLOBAL -->
+      <div class="search-bar">
+        <input type="text" id="busca-global" placeholder="🔍 Buscar produto, código ou data..." onkeyup="buscarGlobal()">
+      </div>
+      <!-- DASHBOARD -->
+      <div class="page" id="page-dashboard">
+        <div class="page-header">
+          <h1>Painel de Controle</h1>
+          <p>Visão geral do estoque</p>
+        </div>
+        
+        <div class="dashboard-grid">
+          <div class="card">
+            <i class="fas fa-boxes"></i>
+            <h3>Total de Produtos</h3>
+            <p class="card-value" id="total-produtos">0</p>
+          </div>
+          <div class="card">
+            <i class="fas fa-arrow-down"></i>
+            <h3>Total de Entradas</h3>
+            <p class="card-value" id="total-entradas">0</p>
+          </div>
+          <div class="card">
+            <i class="fas fa-arrow-up"></i>
+            <h3>Total de Saídas</h3>
+            <p class="card-value" id="total-saidas">0</p>
+          </div>
+          <div class="card">
+            <i class="fas fa-dollar-sign"></i>
+            <h3>Valor Total</h3>
+            <p class="card-value" id="valor-total">R$ 0.00</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTRO DE ENTRADAS -->
+      <div class="page" id="page-filtro-entradas" style="display:none;">
+        <div class="page-header">
+          <h1>FILTRO DAS ENTRADAS</h1>
+          <p>Registros dos produtos</p>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-group">
+            <label>Data Inicial</label>
+            <input type="date" id="data-inicial" placeholder="dd/mm/aaaa">
+          </div>
+          <div class="filter-group">
+            <label>Data Final</label>
+            <input type="date" id="data-final" placeholder="dd/mm/aaaa">
+          </div>
+          <div class="filter-group">
+            <label>Código</label>
+            <input type="text" id="filtro-codigo" placeholder="EX. COD">
+          </div>
+          <div class="filter-group">
+            <label>Produto</label>
+            <select id="filtro-produto">
+              <option value="">Selecione um Produto</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-primary" onclick="aplicarFiltro()">
+            <i class="fas fa-filter"></i> Filtrar
+          </button>
+          <button class="btn btn-secondary" onclick="limparFiltro()">
+            <i class="fas fa-eraser"></i> Limpar
+          </button>
+          <button class="btn btn-pdf" onclick="exportarPDF()">
+            <i class="fas fa-file-pdf"></i> PDF
+          </button>
+          <button class="btn btn-excel" onclick="exportarExcel()">
+            <i class="fas fa-file-excel"></i> Excel
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID ↑</th>
+                <th>CÓDIGO ↑</th>
+                <th>PRODUTO ↑</th>
+                <th>QTD ↑</th>
+                <th>DATA ↑</th>
+                <th>HORA ↑</th>
+                <th>Botões de ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-entradas">
+              <!-- Dados preenchidos por JavaScript -->
+            </tbody>
+          </table>
+          <div class="pagination" id="paginacao-entradas"></div>
+        </div>
+      </div>
+
+      <!-- PRODUTOS -->
+      <div class="page" id="page-produtos" style="display:none;">
+        <div class="page-header">
+          <h1>Produtos</h1>
+          <p>Gerenciamento de produtos</p>
+        </div>
+
+        <div class="form-section">
+          <h3>Adicionar Novo Produto</h3>
+          <div class="form-group">
+            <input type="text" id="novo-codigo" placeholder="Código do Produto">
+            <input type="text" id="novo-nome" placeholder="Nome do Produto">
+            <input type="number" id="novo-estoque" placeholder="Quantidade" min="0">
+            <input type="number" id="novo-valor-unitario" placeholder="Valor Unitário" min="0" step="0.01">
+            <button class="btn btn-primary" onclick="adicionarProduto()">
+              <i class="fas fa-plus"></i> Adicionar
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>CÓDIGO</th>
+                <th>NOME</th>
+                <th>ESTOQUE</th>
+                <th>VALOR UNITÁRIO</th>
+                <th>AÇÕES</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-produtos">
+            </tbody>
+          </table>
+          <div class="pagination" id="paginacao-produtos"></div>
+        </div>
+      </div>
+
+      <!-- ENTRADAS -->
+      <div class="page" id="page-entradas" style="display:none;">
+        <div class="page-header">
+          <h1>Registrar Entrada</h1>
+          <p>Adicionar produtos ao estoque</p>
+        </div>
+
+        <div class="form-section">
+          <div class="form-group">
+            <select id="entrada-produto">
+              <option value="">Selecione um Produto</option>
+            </select>
+            <input type="number" id="entrada-quantidade" placeholder="Quantidade" min="1">
+            <button class="btn btn-primary" onclick="registrarEntrada()">
+              <i class="fas fa-arrow-down"></i> Registrar Entrada
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>CÓDIGO</th>
+                <th>PRODUTO</th>
+                <th>QUANTIDADE</th>
+                <th>DATA</th>
+                <th>HORA</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-historico-entradas">
+            </tbody>
+          </table>
+          <div class="pagination" id="paginacao-historico-entradas"></div>
+        </div>
+      </div>
+
+      <!-- SAÍDAS -->
+      <div class="page" id="page-saidas" style="display:none;">
+        <div class="page-header">
+          <h1>Registrar Saída</h1>
+          <p>Remover produtos do estoque</p>
+        </div>
+
+        <div class="form-section">
+          <div class="form-group">
+            <select id="saida-produto">
+              <option value="">Selecione um Produto</option>
+            </select>
+            <input type="number" id="saida-quantidade" placeholder="Quantidade" min="1">
+            <button class="btn btn-primary" onclick="registrarSaida()">
+              <i class="fas fa-arrow-up"></i> Registrar Saída
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>CÓDIGO</th>
+                <th>PRODUTO</th>
+                <th>QUANTIDADE</th>
+                <th>DATA</th>
+                <th>HORA</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-historico-saidas">
+            </tbody>
+          </table>
+          <div class="pagination" id="paginacao-historico-saidas"></div>
+        </div>
+      </div>
+
+      <!-- FILTRO SAÍDAS -->
+      <div class="page" id="page-filtro-saidas" style="display:none;">
+        <div class="page-header">
+          <h1>FILTRO DAS SAÍDAS</h1>
+          <p>Registros de saída de produtos</p>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-group">
+            <label>Data Inicial</label>
+            <input type="date" id="data-inicial-saida">
+          </div>
+          <div class="filter-group">
+            <label>Data Final</label>
+            <input type="date" id="data-final-saida">
+          </div>
+          <div class="filter-group">
+            <label>Código</label>
+            <input type="text" id="filtro-codigo-saida" placeholder="EX. COD">
+          </div>
+          <div class="filter-group">
+            <label>Produto</label>
+            <select id="filtro-produto-saida">
+              <option value="">Selecione um Produto</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-primary" onclick="aplicarFiltroSaida()">
+            <i class="fas fa-filter"></i> Filtrar
+          </button>
+          <button class="btn btn-secondary" onclick="limparFiltroSaida()">
+            <i class="fas fa-eraser"></i> Limpar
+          </button>
+          <button class="btn btn-pdf" onclick="exportarPDFSaida()">
+            <i class="fas fa-file-pdf"></i> PDF
+          </button>
+          <button class="btn btn-excel" onclick="exportarExcelSaida()">
+            <i class="fas fa-file-excel"></i> Excel
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID ↑</th>
+                <th>CÓDIGO ↑</th>
+                <th>PRODUTO ↑</th>
+                <th>QTD ↑</th>
+                <th>DATA ↑</th>
+                <th>HORA ↑</th>
+                <th>Botões de ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-saidas">
+            </tbody>
+          </table>
+          <div class="pagination" id="paginacao-saidas"></div>
+        </div>
+      </div>
+
+      <!-- RELATÓRIO -->
+      <div class="page" id="page-relatorio" style="display:none;">
+        <div class="page-header">
+          <h1>Relatório</h1>
+          <p>Relatórios gerais do estoque</p>
+        </div>
+        <button class="btn btn-primary" onclick="imprimirRelatorio()">
+          <i class="fas fa-print"></i> Imprimir Relatório
+        </button>
+        <button class="btn btn-pdf" onclick="exportarRelatorioPDF()" style="margin-left: 10px;">
+          <i class="fas fa-file-pdf"></i> Exportar em PDF
+        </button>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd;">
+          <h3>Backup e Restauração</h3>
+          <button class="btn btn-success" onclick="exportarBackup()">
+            <i class="fas fa-download"></i> Fazer Backup
+          </button>
+          <button class="btn btn-warning" onclick="abrirSeletorArquivo()" style="margin-left: 10px;">
+            <i class="fas fa-upload"></i> Restaurar Backup
+          </button>
+          <input type="file" id="arquivo-upload" accept=".json" style="display: none;" onchange="importarBackup(event)">
+        </div>
+        
+        <div class="report-container" id="relatorio-container">
+          <h3>Resumo do Estoque</h3>
+          <p id="relatorio-conteudo">Carregando...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

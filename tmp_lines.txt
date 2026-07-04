@@ -1,0 +1,1206 @@
+1	// ===== DADOS GLOBAIS =====
+2	let produtos = [];
+3	let entradas = [];
+4	let saidas = [];
+5	let proximoIdProduto = 1;
+6	
+7	// PAGINAÇÃO
+8	const itemsPorPagina = 5;
+9	let paginaAtual = {
+10	  entradas: 1,
+11	  produtos: 1,
+12	  historicoEntradas: 1,
+13	  historicoSaidas: 1,
+14	  saidas: 1
+15	};
+16	
+17	// ===== INICIALIZAÇÃO =====
+18	window.addEventListener('load', function() {
+19	  console.log('Página carregada - inicializando...');
+20	  
+21	  carregarDados();
+22	  preencherSelects();
+23	  carregarDashboard();
+24	  atualizarTabelaProdutos();
+25	  atualizarTabelaEntradas();
+26	  atualizarTabelaSaidas();
+27	  
+28	  // Verificar tema salvo
+29	  const temaDark = localStorage.getItem('darkMode') === 'true';
+30	  if (temaDark) {
+31	    document.body.classList.add('dark-mode');
+32	  }
+33	  
+34	  // Setup menu
+35	  setupMenuEventListeners();
+36	  
+37	  // Setup atalhos de teclado
+38	  setupAtalhosTeclado();
+39	});
+40	
+41	// ===== ATALHOS DE TECLADO =====
+42	function setupAtalhosTeclado() {
+43	  document.addEventListener('keydown', function(event) {
+44	    // ESC para fechar modais
+45	    if (event.key === 'Escape') {
+46	      document.getElementById('modal-edicao')?.style.display === 'flex' && cancelarEdicao();
+47	      document.getElementById('modal-edicao-entrada')?.style.display === 'flex' && cancelarEdicaoEntrada();
+48	      document.getElementById('modal-edicao-saida')?.style.display === 'flex' && cancelarEdicaoSaida();
+49	      document.getElementById('modal-confirmacao')?.style.display === 'flex' && cancelarConfirmacao();
+50	    }
+51	    
+52	    // Ctrl+S para salvar (previne o comportamento padrão)
+53	    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+54	      event.preventDefault();
+55	      mostrarNotificacao('Dados salvos automaticamente!', 'info');
+56	    }
+57	  });
+58	}
+59	
+60	// ===== LOCALSTORAGE =====
+61	function salvarDados() {
+62	  try {
+63	    localStorage.setItem('produtos', JSON.stringify(produtos));
+64	    localStorage.setItem('entradas', JSON.stringify(entradas));
+65	    localStorage.setItem('saidas', JSON.stringify(saidas));
+66	    localStorage.setItem('proximoIdProduto', proximoIdProduto.toString());
+67	  } catch(e) {
+68	    console.error('Erro ao salvar dados:', e);
+69	  }
+70	}
+71	
+72	function carregarDados() {
+73	  try {
+74	    const produtosArmazenados = localStorage.getItem('produtos');
+75	    const entradasArmazenadas = localStorage.getItem('entradas');
+76	    const saidasArmazenadas = localStorage.getItem('saidas');
+77	    const proximoId = localStorage.getItem('proximoIdProduto');
+78	    
+79	    if (produtosArmazenados) {
+80	      produtos = JSON.parse(produtosArmazenados);
+81	    } else {
+82	      produtos = [
+83	        { id: 1, codigo: '7897076910905', nome: 'BOTINA 40', estoque: 8 },
+84	        { id: 2, codigo: '7896331700574', nome: 'CAPACETE', estoque: 5 },
+85	        { id: 3, codigo: '7897076910906', nome: 'BOTINA 41', estoque: 12 },
+86	        { id: 4, codigo: '7897076910907', nome: 'BOTINA 42', estoque: 3 }
+87	      ];
+88	      proximoIdProduto = 5;
+89	      salvarDados();
+90	    }
+91	    
+92	    if (entradasArmazenadas) {
+93	      entradas = JSON.parse(entradasArmazenadas);
+94	    } else {
+95	      entradas = [
+96	        { id: 1, codigo: '7897076910905', nome: 'BOTINA 40', quantidade: 1, data: '18/05/2026', hora: '20:00:01' },
+97	        { id: 2, codigo: '7897076910905', nome: 'BOTINA 40', quantidade: 1, data: '18/05/2026', hora: '20:00:02' },
+98	        { id: 3, codigo: '7897076910905', nome: 'BOTINA 40', quantidade: 1, data: '18/05/2026', hora: '20:00:03' },
+99	        { id: 4, codigo: '7897076910905', nome: 'BOTINA 40', quantidade: 1, data: '18/05/2026', hora: '20:00:04' },
+100	        { id: 5, codigo: '7897076910905', nome: 'BOTINA 40', quantidade: 1, data: '18/05/2026', hora: '20:00:04' },
+101	        { id: 6, codigo: '7897076910905', nome: 'BOTINA 40', quantidade: 1, data: '18/05/2026', hora: '20:00:05' },
+102	        { id: 7, codigo: '7897076910905', nome: 'BOTINA 40', quantidade: 1, data: '18/05/2026', hora: '20:00:05' },
+103	        { id: 8, codigo: '7896331700574', nome: 'CAPACETE', quantidade: 1, data: '18/05/2026', hora: '20:00:07' }
+104	      ];
+105	      salvarDados();
+106	    }
+107	    
+108	    if (saidasArmazenadas) {
+109	      saidas = JSON.parse(saidasArmazenadas);
+110	    }
+111	    
+112	    if (proximoId) {
+113	      proximoIdProduto = parseInt(proximoId);
+114	    }
+115	  } catch(e) {
+116	    console.error('Erro ao carregar dados:', e);
+117	  }
+118	}
+119	
+120	// ===== NOTIFICAÇÕES =====
+121	function mostrarNotificacao(mensagem, tipo = 'success') {
+122	  const container = document.getElementById('notification-container');
+123	  if (!container) return;
+124	  
+125	  const toast = document.createElement('div');
+126	  toast.className = `toast ${tipo}`;
+127	  
+128	  let icon = '';
+129	  switch(tipo) {
+130	    case 'success': icon = '<i class="fas fa-check-circle"></i>'; break;
+131	    case 'error': icon = '<i class="fas fa-times-circle"></i>'; break;
+132	    case 'info': icon = '<i class="fas fa-info-circle"></i>'; break;
+133	    case 'warning': icon = '<i class="fas fa-exclamation-circle"></i>'; break;
+134	  }
+135	  
+136	  toast.innerHTML = icon + '<span>' + mensagem + '</span>';
+137	  container.appendChild(toast);
+138	  
+139	  setTimeout(() => {
+140	    toast.classList.add('fade-out');
+141	    setTimeout(() => toast.remove(), 300);
+142	  }, 3000);
+143	}
+144	
+145	// ===== DARK MODE =====
+146	function toggleDarkMode() {
+147	  document.body.classList.toggle('dark-mode');
+148	  const isDark = document.body.classList.contains('dark-mode');
+149	  localStorage.setItem('darkMode', isDark.toString());
+150	  mostrarNotificacao('Tema alterado', 'info');
+151	}
+152	
+153	// ===== MODAL DE CONFIRMAÇÃO =====
+154	let confirmacaoCallback = null;
+155	
+156	function pedirConfirmacao(mensagem, callback) {
+157	  document.getElementById('confirmacao-mensagem').textContent = mensagem;
+158	  confirmacaoCallback = callback;
+159	  document.getElementById('modal-confirmacao').style.display = 'flex';
+160	}
+161	
+162	function executarConfirmacao() {
+163	  if (confirmacaoCallback) {
+164	    confirmacaoCallback();
+165	  }
+166	  cancelarConfirmacao();
+167	}
+168	
+169	function cancelarConfirmacao() {
+170	  document.getElementById('modal-confirmacao').style.display = 'none';
+171	  confirmacaoCallback = null;
+172	}
+173	
+174	// ===== MENU =====
+175	function setupMenuEventListeners() {
+176	  const menuItems = document.querySelectorAll('.menu-item');
+177	  console.log('Total de itens de menu encontrados:', menuItems.length);
+178	  
+179	  menuItems.forEach(item => {
+180	    item.addEventListener('click', function(e) {
+181	      e.preventDefault();
+182	      
+183	      const page = this.getAttribute('data-page');
+184	      console.log('Menu clicado - navegando para:', page);
+185	      
+186	      if (page) {
+187	        navegarPara(page);
+188	        
+189	        // Atualizar menu ativo
+190	        menuItems.forEach(m => m.classList.remove('active'));
+191	        this.classList.add('active');
+192	      }
+193	    });
+194	  });
+195	}
+196	
+197	function navegarPara(pageName) {
+198	  console.log('Navegando para página:', pageName);
+199	  
+200	  const pages = document.querySelectorAll('.page');
+201	  pages.forEach(page => page.style.display = 'none');
+202	  
+203	  const pageElement = document.getElementById('page-' + pageName);
+204	  if (pageElement) {
+205	    pageElement.style.display = 'block';
+206	    
+207	    // Carregar conteúdo específico
+208	    switch(pageName) {
+209	      case 'dashboard':
+210	        carregarDashboard();
+211	        break;
+212	      case 'produtos':
+213	        atualizarTabelaProdutos();
+214	        preencherSelects();
+215	        break;
+216	      case 'filtro-entradas':
+217	        atualizarTabelaEntradasFiltro();
+218	        break;
+219	      case 'entradas':
+220	        preencherSelects();
+221	        atualizarTabelaEntradas();
+222	        break;
+223	      case 'saidas':
+224	        preencherSelects();
+225	        atualizarTabelaSaidas();
+226	        break;
+227	      case 'filtro-saidas':
+228	        atualizarTabelaSaidasFiltro();
+229	        break;
+230	      case 'relatorio':
+231	        gerarRelatorio();
+232	        break;
+233	    }
+234	  } else {
+235	    console.error('Elemento da página não encontrado:', 'page-' + pageName);
+236	  }
+237	}
+238	
+239	// ===== DASHBOARD =====
+240	function carregarDashboard() {
+241	  const totalProdutos = produtos.length;
+242	  const totalEntradas = entradas.length;
+243	  const totalSaidas = saidas.length;
+244	  
+245	  const elem1 = document.getElementById('total-produtos');
+246	  const elem2 = document.getElementById('total-entradas');
+247	  const elem3 = document.getElementById('total-saidas');
+248	  const elem4 = document.getElementById('valor-total');
+249	  
+250	  if (elem1) elem1.textContent = totalProdutos;
+251	  if (elem2) elem2.textContent = totalEntradas;
+252	  if (elem3) elem3.textContent = totalSaidas;
+253	  if (elem4) elem4.textContent = 'R$ ' + (totalProdutos * 100).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+254	}
+255	
+256	// ===== PRODUTOS =====
+257	function adicionarProduto() {
+258	  const codigo = document.getElementById('novo-codigo')?.value.trim();
+259	  const nome = document.getElementById('novo-nome')?.value.trim();
+260	  const estoque = parseInt(document.getElementById('novo-estoque')?.value) || 0;
+261	  
+262	  // Validações melhoradas
+263	  if (!codigo || !nome) {
+264	    mostrarNotificacao('Preencha todos os campos!', 'error');
+265	    return;
+266	  }
+267	  
+268	  if (estoque < 0) {
+269	    mostrarNotificacao('Estoque não pode ser negativo!', 'error');
+270	    return;
+271	  }
+272	  
+273	  if (estoque > 999999) {
+274	    mostrarNotificacao('Estoque muito alto! Máximo: 999.999', 'error');
+275	    return;
+276	  }
+277	  
+278	  // Verificar se código já existe
+279	  if (produtos.some(p => p.codigo === codigo)) {
+280	    mostrarNotificacao('Este código de produto já existe!', 'error');
+281	    return;
+282	  }
+283	  
+284	  // Verificar comprimento do nome
+285	  if (nome.length < 3) {
+286	    mostrarNotificacao('Nome do produto deve ter pelo menos 3 caracteres!', 'error');
+287	    return;
+288	  }
+289	  
+290	  if (nome.length > 100) {
+291	    mostrarNotificacao('Nome do produto muito longo! Máximo: 100 caracteres', 'error');
+292	    return;
+293	  }
+294	  
+295	  produtos.push({
+296	    id: proximoIdProduto++,
+297	    codigo: codigo,
+298	    nome: nome,
+299	    estoque: estoque
+300	  });
+301	  
+302	  document.getElementById('novo-codigo').value = '';
+303	  document.getElementById('novo-nome').value = '';
+304	  document.getElementById('novo-estoque').value = '';
+305	  
+306	  salvarDados();
+307	  atualizarTabelaProdutos();
+308	  preencherSelects();
+309	  mostrarNotificacao('Produto adicionado com sucesso!', 'success');
+310	}
+311	
+312	function atualizarTabelaProdutos() {
+313	  const tbody = document.getElementById('tabela-produtos');
+314	  if (!tbody) return;
+315	  
+316	  const inicio = (paginaAtual.produtos - 1) * itemsPorPagina;
+317	  const fim = inicio + itemsPorPagina;
+318	  const dados = produtos.slice(inicio, fim);
+319	  
+320	  tbody.innerHTML = '';
+321	  let totalEstoque = 0;
+322	  
+323	  dados.forEach(produto => {
+324	    totalEstoque += produto.estoque;
+325	    const row = document.createElement('tr');
+326	    row.innerHTML = `
+327	      <td>${produto.id}</td>
+328	      <td>${produto.codigo}</td>
+329	      <td>${produto.nome}</td>
+330	      <td>${produto.estoque}</td>
+331	      <td>
+332	        <button class="action-btn edit-btn" onclick="editarProduto(${produto.id})">✎ Editar</button>
+333	        <button class="action-btn delete-btn" onclick="deletarProduto(${produto.id})">✕ Deletar</button>
+334	      </td>
+335	    `;
+336	    tbody.appendChild(row);
+337	  });
+338	  
+339	  // Adicionar linha de total
+340	  const rowTotal = document.createElement('tr');
+341	  rowTotal.style.backgroundColor = '#f0f0f0';
+342	  rowTotal.style.fontWeight = 'bold';
+343	  rowTotal.innerHTML = `
+344	    <td colspan="3" style="text-align: right; padding-right: 20px;">TOTAL:</td>
+345	    <td style="border-top: 2px solid #1abc9c;">${totalEstoque}</td>
+346	    <td></td>
+347	  `;
+348	  tbody.appendChild(rowTotal);
+349	  
+350	  atualizarPaginacao('produtos', produtos.length);
+351	}
+352	
+353	function editarProduto(id) {
+354	  const produto = produtos.find(p => p.id === id);
+355	  if (!produto) {
+356	    mostrarNotificacao('Produto não encontrado!', 'error');
+357	    return;
+358	  }
+359	  
+360	  document.getElementById('edicao-id').value = produto.id;
+361	  document.getElementById('edicao-codigo').value = produto.codigo;
+362	  document.getElementById('edicao-nome').value = produto.nome;
+363	  document.getElementById('edicao-estoque').value = produto.estoque;
+364	  
+365	  document.getElementById('modal-edicao').style.display = 'flex';
+366	}
+367	
+368	function cancelarEdicao() {
+369	  document.getElementById('modal-edicao').style.display = 'none';
+370	}
+371	
+372	function salvarEdicaoProduto(event) {
+373	  event.preventDefault();
+374	  
+375	  const id = parseInt(document.getElementById('edicao-id').value);
+376	  const codigo = document.getElementById('edicao-codigo').value.trim();
+377	  const nome = document.getElementById('edicao-nome').value.trim();
+378	  const estoque = parseInt(document.getElementById('edicao-estoque').value);
+379	  
+380	  if (!codigo || !nome) {
+381	    mostrarNotificacao('Preencha todos os campos!', 'error');
+382	    return;
+383	  }
+384	  
+385	  const produto = produtos.find(p => p.id === id);
+386	  if (produto) {
+387	    produto.codigo = codigo;
+388	    produto.nome = nome;
+389	    produto.estoque = estoque;
+390	    
+391	    salvarDados();
+392	    atualizarTabelaProdutos();
+393	    preencherSelects();
+394	    cancelarEdicao();
+395	    mostrarNotificacao('Produto atualizado com sucesso!', 'success');
+396	  } else {
+397	    mostrarNotificacao('Produto não encontrado!', 'error');
+398	  }
+399	}
+400	
+401	function deletarProduto(id) {
+402	  pedirConfirmacao('Tem certeza que deseja deletar este produto?', () => {
+403	    produtos = produtos.filter(p => p.id !== id);
+404	    salvarDados();
+405	    atualizarTabelaProdutos();
+406	    preencherSelects();
+407	    mostrarNotificacao('Produto deletado com sucesso!', 'success');
+408	  });
+409	}
+410	
+411	// ===== ENTRADAS =====
+412	function registrarEntrada() {
+413	  const produtoId = parseInt(document.getElementById('entrada-produto')?.value);
+414	  const quantidade = parseInt(document.getElementById('entrada-quantidade')?.value);
+415	  
+416	  if (!produtoId || !quantidade || quantidade <= 0) {
+417	    mostrarNotificacao('Selecione um produto e quantidade válida!', 'error');
+418	    return;
+419	  }
+420	  
+421	  const produto = produtos.find(p => p.id === produtoId);
+422	  if (!produto) {
+423	    mostrarNotificacao('Produto não encontrado!', 'error');
+424	    return;
+425	  }
+426	  
+427	  const agora = new Date();
+428	  const data = agora.toLocaleDateString('pt-BR');
+429	  const hora = agora.toLocaleTimeString('pt-BR');
+430	  
+431	  entradas.push({
+432	    id: entradas.length + 1,
+433	    codigo: produto.codigo,
+434	    nome: produto.nome,
+435	    quantidade: quantidade,
+436	    data: data,
+437	    hora: hora
+438	  });
+439	  
+440	  produto.estoque += quantidade;
+441	  
+442	  document.getElementById('entrada-produto').value = '';
+443	  document.getElementById('entrada-quantidade').value = '';
+444	  
+445	  salvarDados();
+446	  atualizarTabelaEntradas();
+447	  mostrarNotificacao('Entrada registrada com sucesso!', 'success');
+448	}
+449	
+450	function atualizarTabelaEntradas() {
+451	  const tbody = document.getElementById('tabela-historico-entradas');
+452	  if (!tbody) return;
+453	  
+454	  const inicio = (paginaAtual.historicoEntradas - 1) * itemsPorPagina;
+455	  const fim = inicio + itemsPorPagina;
+456	  const dados = entradas.slice(inicio, fim);
+457	  
+458	  tbody.innerHTML = '';
+459	  let totalQuantidade = 0;
+460	  
+461	  dados.forEach(entrada => {
+462	    totalQuantidade += entrada.quantidade;
+463	    const row = document.createElement('tr');
+464	    row.innerHTML = `
+465	      <td>${entrada.id}</td>
+466	      <td>${entrada.codigo}</td>
+467	      <td>${entrada.nome}</td>
+468	      <td>${entrada.quantidade}</td>
+469	      <td>${entrada.data}</td>
+470	      <td>${entrada.hora}</td>
+471	    `;
+472	    tbody.appendChild(row);
+473	  });
+474	  
+475	  // Adicionar linha de total
+476	  const rowTotal = document.createElement('tr');
+477	  rowTotal.style.backgroundColor = '#f0f0f0';
+478	  rowTotal.style.fontWeight = 'bold';
+479	  rowTotal.innerHTML = `
+480	    <td colspan="3" style="text-align: right; padding-right: 20px;">TOTAL:</td>
+481	    <td style="border-top: 2px solid #1abc9c;">${totalQuantidade}</td>
+482	    <td colspan="2"></td>
+483	  `;
+484	  tbody.appendChild(rowTotal);
+485	  
+486	  atualizarPaginacao('historicoEntradas', entradas.length);
+487	}
+488	
+489	// ===== SAÍDAS =====
+490	function registrarSaida() {
+491	  const produtoId = parseInt(document.getElementById('saida-produto')?.value);
+492	  const quantidade = parseInt(document.getElementById('saida-quantidade')?.value);
+493	  
+494	  if (!produtoId || !quantidade || quantidade <= 0) {
+495	    mostrarNotificacao('Selecione um produto e quantidade válida!', 'error');
+496	    return;
+497	  }
+498	  
+499	  const produto = produtos.find(p => p.id === produtoId);
+500	  if (!produto) {
+501	    mostrarNotificacao('Produto não encontrado!', 'error');
+502	    return;
+503	  }
+504	  
+505	  if (produto.estoque < quantidade) {
+506	    mostrarNotificacao('Estoque insuficiente! Disponível: ' + produto.estoque, 'error');
+507	    return;
+508	  }
+509	  
+510	  const agora = new Date();
+511	  const data = agora.toLocaleDateString('pt-BR');
+512	  const hora = agora.toLocaleTimeString('pt-BR');
+513	  
+514	  saidas.push({
+515	    id: saidas.length + 1,
+516	    codigo: produto.codigo,
+517	    nome: produto.nome,
+518	    quantidade: quantidade,
+519	    data: data,
+520	    hora: hora
+521	  });
+522	  
+523	  produto.estoque -= quantidade;
+524	  
+525	  document.getElementById('saida-produto').value = '';
+526	  document.getElementById('saida-quantidade').value = '';
+527	  
+528	  salvarDados();
+529	  atualizarTabelaSaidas();
+530	  mostrarNotificacao('Saída registrada com sucesso!', 'success');
+531	}
+532	
+533	function atualizarTabelaSaidas() {
+534	  const tbody = document.getElementById('tabela-historico-saidas');
+535	  if (!tbody) return;
+536	  
+537	  const inicio = (paginaAtual.historicoSaidas - 1) * itemsPorPagina;
+538	  const fim = inicio + itemsPorPagina;
+539	  const dados = saidas.slice(inicio, fim);
+540	  
+541	  tbody.innerHTML = '';
+542	  let totalQuantidade = 0;
+543	  
+544	  dados.forEach(saida => {
+545	    totalQuantidade += saida.quantidade;
+546	    const row = document.createElement('tr');
+547	    row.innerHTML = `
+548	      <td>${saida.id}</td>
+549	      <td>${saida.codigo}</td>
+550	      <td>${saida.nome}</td>
+551	      <td>${saida.quantidade}</td>
+552	      <td>${saida.data}</td>
+553	      <td>${saida.hora}</td>
+554	    `;
+555	    tbody.appendChild(row);
+556	  });
+557	  
+558	  // Adicionar linha de total
+559	  const rowTotal = document.createElement('tr');
+560	  rowTotal.style.backgroundColor = '#f0f0f0';
+561	  rowTotal.style.fontWeight = 'bold';
+562	  rowTotal.innerHTML = `
+563	    <td colspan="3" style="text-align: right; padding-right: 20px;">TOTAL:</td>
+564	    <td style="border-top: 2px solid #1abc9c;">${totalQuantidade}</td>
+565	    <td colspan="2"></td>
+566	  `;
+567	  tbody.appendChild(rowTotal);
+568	  
+569	  atualizarPaginacao('historicoSaidas', saidas.length);
+570	  atualizarTabelaSaidasFiltro();
+571	}
+572	
+573	function deletarSaida(id) {
+574	  pedirConfirmacao('Tem certeza que deseja deletar esta saída?', () => {
+575	    const saida = saidas.find(s => s.id === id);
+576	    const produto = produtos.find(p => p.codigo === saida.codigo);
+577	    if (produto) produto.estoque += saida.quantidade;
+578	    
+579	    saidas = saidas.filter(s => s.id !== id);
+580	    salvarDados();
+581	    atualizarTabelaSaidas();
+582	    mostrarNotificacao('Saída deletada com sucesso!', 'success');
+583	  });
+584	}
+585	
+586	// ===== SELECTS =====
+587	function preencherSelects() {
+588	  const selects = ['filtro-produto', 'entrada-produto', 'saida-produto', 'filtro-produto-saida'];
+589	  
+590	  selects.forEach(id => {
+591	    const select = document.getElementById(id);
+592	    if (select) {
+593	      const valor = select.value;
+594	      select.innerHTML = '<option value="">Selecione um Produto</option>';
+595	      
+596	      produtos.forEach(produto => {
+597	        const option = document.createElement('option');
+598	        option.value = produto.id;
+599	        option.textContent = `${produto.codigo} - ${produto.nome}`;
+600	        select.appendChild(option);
+601	      });
+602	      
+603	      if (valor) select.value = valor;
+604	    }
+605	  });
+606	}
+607	
+608	// ===== FILTROS ENTRADAS =====
+609	function aplicarFiltro() {
+610	  const dataInicial = document.getElementById('data-inicial')?.value;
+611	  const dataFinal = document.getElementById('data-final')?.value;
+612	  const codigo = document.getElementById('filtro-codigo')?.value.toLowerCase();
+613	  const produtoId = document.getElementById('filtro-produto')?.value;
+614	  
+615	  let entradasFiltradas = entradas.slice();
+616	  
+617	  if (dataInicial) {
+618	    const data = new Date(dataInicial);
+619	    entradasFiltradas = entradasFiltradas.filter(e => {
+620	      const dataParts = e.data.split('/');
+621	      const dataEntrada = new Date(dataParts[2], dataParts[1] - 1, dataParts[0]);
+622	      return dataEntrada >= data;
+623	    });
+624	  }
+625	  
+626	  if (dataFinal) {
+627	    const data = new Date(dataFinal);
+628	    entradasFiltradas = entradasFiltradas.filter(e => {
+629	      const dataParts = e.data.split('/');
+630	      const dataEntrada = new Date(dataParts[2], dataParts[1] - 1, dataParts[0]);
+631	      return dataEntrada <= data;
+632	    });
+633	  }
+634	  
+635	  if (codigo) {
+636	    entradasFiltradas = entradasFiltradas.filter(e => e.codigo.toLowerCase().includes(codigo));
+637	  }
+638	  
+639	  if (produtoId) {
+640	    const produto = produtos.find(p => p.id === parseInt(produtoId));
+641	    if (produto) {
+642	      entradasFiltradas = entradasFiltradas.filter(e => e.codigo === produto.codigo);
+643	    }
+644	  }
+645	  
+646	  paginaAtual.entradas = 1;
+647	  exibirTabelaFiltrada('entradas', entradasFiltradas);
+648	  mostrarNotificacao('Filtro aplicado!', 'success');
+649	}
+650	
+651	function limparFiltro() {
+652	  if (document.getElementById('data-inicial')) document.getElementById('data-inicial').value = '';
+653	  if (document.getElementById('data-final')) document.getElementById('data-final').value = '';
+654	  if (document.getElementById('filtro-codigo')) document.getElementById('filtro-codigo').value = '';
+655	  if (document.getElementById('filtro-produto')) document.getElementById('filtro-produto').value = '';
+656	  
+657	  atualizarTabelaEntradasFiltro();
+658	  mostrarNotificacao('Filtro limpo!', 'info');
+659	}
+660	
+661	function atualizarTabelaEntradasFiltro() {
+662	  paginaAtual.entradas = 1;
+663	  exibirTabelaFiltrada('entradas', entradas);
+664	}
+665	
+666	function exibirTabelaFiltrada(tipo, dados) {
+667	  const tbody = document.getElementById('tabela-' + tipo);
+668	  if (!tbody) return;
+669	  
+670	  const inicio = (paginaAtual[tipo] - 1) * itemsPorPagina;
+671	  const fim = inicio + itemsPorPagina;
+672	  const paginados = dados.slice(inicio, fim);
+673	  
+674	  tbody.innerHTML = '';
+675	  paginados.forEach(item => {
+676	    const row = document.createElement('tr');
+677	    row.innerHTML = `
+678	      <td>${item.id}</td>
+679	      <td>${item.codigo}</td>
+680	      <td>${item.nome}</td>
+681	      <td>${item.quantidade}</td>
+682	      <td>${item.data}</td>
+683	      <td>${item.hora}</td>
+684	      <td>
+685	        <button class="action-btn edit-btn" onclick="editarEntrada(${item.id})">✎ Editar</button>
+686	        <button class="action-btn delete-btn" onclick="deletarEntrada(${item.id})">✕ Deletar</button>
+687	      </td>
+688	    `;
+689	    tbody.appendChild(row);
+690	  });
+691	  
+692	  atualizarPaginacao(tipo, dados.length);
+693	}
+694	
+695	// ===== FILTROS SAÍDAS =====
+696	function aplicarFiltroSaida() {
+697	  const dataInicial = document.getElementById('data-inicial-saida')?.value;
+698	  const dataFinal = document.getElementById('data-final-saida')?.value;
+699	  const codigo = document.getElementById('filtro-codigo-saida')?.value.toLowerCase();
+700	  const produtoId = document.getElementById('filtro-produto-saida')?.value;
+701	  
+702	  let saidasFiltradas = saidas.slice();
+703	  
+704	  if (dataInicial) {
+705	    const data = new Date(dataInicial);
+706	    saidasFiltradas = saidasFiltradas.filter(s => {
+707	      const dataParts = s.data.split('/');
+708	      const dataSaida = new Date(dataParts[2], dataParts[1] - 1, dataParts[0]);
+709	      return dataSaida >= data;
+710	    });
+711	  }
+712	  
+713	  if (dataFinal) {
+714	    const data = new Date(dataFinal);
+715	    saidasFiltradas = saidasFiltradas.filter(s => {
+716	      const dataParts = s.data.split('/');
+717	      const dataSaida = new Date(dataParts[2], dataParts[1] - 1, dataParts[0]);
+718	      return dataSaida <= data;
+719	    });
+720	  }
+721	  
+722	  if (codigo) {
+723	    saidasFiltradas = saidasFiltradas.filter(s => s.codigo.toLowerCase().includes(codigo));
+724	  }
+725	  
+726	  if (produtoId) {
+727	    const produto = produtos.find(p => p.id === parseInt(produtoId));
+728	    if (produto) {
+729	      saidasFiltradas = saidasFiltradas.filter(s => s.codigo === produto.codigo);
+730	    }
+731	  }
+732	  
+733	  paginaAtual.saidas = 1;
+734	  exibirTabelaSaidasFiltrada(saidasFiltradas);
+735	  mostrarNotificacao('Filtro aplicado!', 'success');
+736	}
+737	
+738	function limparFiltroSaida() {
+739	  if (document.getElementById('data-inicial-saida')) document.getElementById('data-inicial-saida').value = '';
+740	  if (document.getElementById('data-final-saida')) document.getElementById('data-final-saida').value = '';
+741	  if (document.getElementById('filtro-codigo-saida')) document.getElementById('filtro-codigo-saida').value = '';
+742	  if (document.getElementById('filtro-produto-saida')) document.getElementById('filtro-produto-saida').value = '';
+743	  
+744	  atualizarTabelaSaidasFiltro();
+745	  mostrarNotificacao('Filtro limpo!', 'info');
+746	}
+747	
+748	function atualizarTabelaSaidasFiltro() {
+749	  paginaAtual.saidas = 1;
+750	  exibirTabelaSaidasFiltrada(saidas);
+751	}
+752	
+753	function exibirTabelaSaidasFiltrada(dados) {
+754	  const tbody = document.getElementById('tabela-saidas');
+755	  if (!tbody) return;
+756	  
+757	  const inicio = (paginaAtual.saidas - 1) * itemsPorPagina;
+758	  const fim = inicio + itemsPorPagina;
+759	  const paginados = dados.slice(inicio, fim);
+760	  
+761	  tbody.innerHTML = '';
+762	  paginados.forEach(saida => {
+763	    const row = document.createElement('tr');
+764	    row.innerHTML = `
+765	      <td>${saida.id}</td>
+766	      <td>${saida.codigo}</td>
+767	      <td>${saida.nome}</td>
+768	      <td>${saida.quantidade}</td>
+769	      <td>${saida.data}</td>
+770	      <td>${saida.hora}</td>
+771	      <td>
+772	        <button class="action-btn edit-btn" onclick="editarSaida(${saida.id})">✎ Editar</button>
+773	        <button class="action-btn delete-btn" onclick="deletarSaida(${saida.id})">✕ Deletar</button>
+774	      </td>
+775	    `;
+776	    tbody.appendChild(row);
+777	  });
+778	  
+779	  atualizarPaginacao('saidas', dados.length);
+780	}
+781	
+782	// ===== PAGINAÇÃO =====
+783	function editarEntrada(id) {
+784	  const entrada = entradas.find(e => e.id === id);
+785	  if (!entrada) {
+786	    mostrarNotificacao('Entrada não encontrada!', 'error');
+787	    return;
+788	  }
+789	  
+790	  document.getElementById('edicao-entrada-id').value = entrada.id;
+791	  document.getElementById('edicao-entrada-produto').value = entrada.nome;
+792	  document.getElementById('edicao-entrada-quantidade').value = entrada.quantidade;
+793	  
+794	  document.getElementById('modal-edicao-entrada').style.display = 'flex';
+795	}
+796	
+797	function cancelarEdicaoEntrada() {
+798	  document.getElementById('modal-edicao-entrada').style.display = 'none';
+799	}
+800	
+801	function salvarEdicaoEntrada(event) {
+802	  event.preventDefault();
+803	  
+804	  const id = parseInt(document.getElementById('edicao-entrada-id').value);
+805	  const quantidade = parseInt(document.getElementById('edicao-entrada-quantidade').value);
+806	  
+807	  if (quantidade <= 0) {
+808	    mostrarNotificacao('Quantidade deve ser maior que zero!', 'error');
+809	    return;
+810	  }
+811	  
+812	  const entrada = entradas.find(e => e.id === id);
+813	  if (entrada) {
+814	    const diferencaQtd = quantidade - entrada.quantidade;
+815	    const produto = produtos.find(p => p.codigo === entrada.codigo);
+816	    
+817	    if (produto) {
+818	      produto.estoque += diferencaQtd;
+819	    }
+820	    
+821	    entrada.quantidade = quantidade;
+822	    salvarDados();
+823	    atualizarTabelaEntradasFiltro();
+824	    cancelarEdicaoEntrada();
+825	    mostrarNotificacao('Entrada atualizada com sucesso!', 'success');
+826	  } else {
+827	    mostrarNotificacao('Entrada não encontrada!', 'error');
+828	  }
+829	}
+830	
+831	function deletarEntrada(id) {
+832	  pedirConfirmacao('Tem certeza que deseja deletar esta entrada?', () => {
+833	    const entrada = entradas.find(e => e.id === id);
+834	    const produto = produtos.find(p => p.codigo === entrada.codigo);
+835	    if (produto) {
+836	      produto.estoque -= entrada.quantidade;
+837	    }
+838	    
+839	    entradas = entradas.filter(e => e.id !== id);
+840	    salvarDados();
+841	    atualizarTabelaEntradasFiltro();
+842	    mostrarNotificacao('Entrada deletada com sucesso!', 'success');
+843	  }
+844	}
+845	
+846	function editarSaida(id) {
+847	  const saida = saidas.find(s => s.id === id);
+848	  if (!saida) {
+849	    mostrarNotificacao('Saída não encontrada!', 'error');
+850	    return;
+851	  }
+852	  
+853	  document.getElementById('edicao-saida-id').value = saida.id;
+854	  document.getElementById('edicao-saida-produto').value = saida.nome;
+855	  document.getElementById('edicao-saida-quantidade').value = saida.quantidade;
+856	  
+857	  document.getElementById('modal-edicao-saida').style.display = 'flex';
+858	}
+859	
+860	function cancelarEdicaoSaida() {
+861	  document.getElementById('modal-edicao-saida').style.display = 'none';
+862	}
+863	
+864	function salvarEdicaoSaida(event) {
+865	  event.preventDefault();
+866	  
+867	  const id = parseInt(document.getElementById('edicao-saida-id').value);
+868	  const quantidade = parseInt(document.getElementById('edicao-saida-quantidade').value);
+869	  
+870	  if (quantidade <= 0) {
+871	    mostrarNotificacao('Quantidade deve ser maior que zero!', 'error');
+872	    return;
+873	  }
+874	  
+875	  const saida = saidas.find(s => s.id === id);
+876	  if (saida) {
+877	    const diferencaQtd = saida.quantidade - quantidade; // inverte porque saída diminui estoque
+878	    const produto = produtos.find(p => p.codigo === saida.codigo);
+879	    
+880	    if (produto) {
+881	      if (produto.estoque + diferencaQtd < 0) {
+882	        mostrarNotificacao('Estoque insuficiente para esta alteração!', 'error');
+883	        return;
+884	      }
+885	      produto.estoque += diferencaQtd;
+886	    }
+887	    
+888	    saida.quantidade = quantidade;
+889	    salvarDados();
+890	    atualizarTabelaSaidasFiltro();
+891	    cancelarEdicaoSaida();
+892	    mostrarNotificacao('Saída atualizada com sucesso!', 'success');
+893	  } else {
+894	    mostrarNotificacao('Saída não encontrada!', 'error');
+895	  }
+896	}
+897	
+898	function atualizarPaginacao(tipo, totalItens) {
+899	  const totalPaginas = Math.ceil(totalItens / itemsPorPagina);
+900	  const paginacaoId = 'paginacao-' + tipo;
+901	  const container = document.getElementById(paginacaoId);
+902	  
+903	  if (!container) return;
+904	  
+905	  container.innerHTML = '';
+906	  
+907	  if (totalPaginas <= 1) return;
+908	  
+909	  if (paginaAtual[tipo] > 1) {
+910	    const btn = document.createElement('button');
+911	    btn.textContent = '← Anterior';
+912	    btn.onclick = () => {
+913	      paginaAtual[tipo]--;
+914	      atualizarTabelaPorTipo(tipo);
+915	    };
+916	    container.appendChild(btn);
+917	  }
+918	  
+919	  for (let i = 1; i <= totalPaginas; i++) {
+920	    const btn = document.createElement('button');
+921	    btn.textContent = i;
+922	    if (i === paginaAtual[tipo]) btn.classList.add('active');
+923	    btn.onclick = () => {
+924	      paginaAtual[tipo] = i;
+925	      atualizarTabelaPorTipo(tipo);
+926	    };
+927	    container.appendChild(btn);
+928	  }
+929	  
+930	  if (paginaAtual[tipo] < totalPaginas) {
+931	    const btn = document.createElement('button');
+932	    btn.textContent = 'Próximo →';
+933	    btn.onclick = () => {
+934	      paginaAtual[tipo]++;
+935	      atualizarTabelaPorTipo(tipo);
+936	    };
+937	    container.appendChild(btn);
+938	  }
+939	  
+940	  const span = document.createElement('span');
+941	  span.textContent = ` Página ${paginaAtual[tipo]} de ${totalPaginas}`;
+942	  container.appendChild(span);
+943	}
+944	
+945	function atualizarTabelaPorTipo(tipo) {
+946	  switch(tipo) {
+947	    case 'produtos': atualizarTabelaProdutos(); break;
+948	    case 'historicoEntradas': atualizarTabelaEntradas(); break;
+949	    case 'historicoSaidas': atualizarTabelaSaidas(); break;
+950	    case 'entradas': atualizarTabelaEntradasFiltro(); break;
+951	    case 'saidas': atualizarTabelaSaidasFiltro(); break;
+952	  }
+953	}
+954	
+955	// ===== BUSCA GLOBAL =====
+956	function buscarGlobal() {
+957	  const termo = document.getElementById('busca-global')?.value.toLowerCase().trim();
+958	  
+959	  if (!termo) {
+960	    atualizarTabelaProdutos();
+961	    atualizarTabelaEntradas();
+962	    atualizarTabelaSaidas();
+963	    return;
+964	  }
+965	  
+966	  // Buscar em produtos
+967	  const produtosFiltrados = produtos.filter(p => 
+968	    p.nome.toLowerCase().includes(termo) || 
+969	    p.codigo.toLowerCase().includes(termo)
+970	  );
+971	  
+972	  // Buscar em entradas
+973	  const entradasFiltradas = entradas.filter(e =>
+974	    e.nome.toLowerCase().includes(termo) ||
+975	    e.codigo.toLowerCase().includes(termo)
+976	  );
+977	  
+978	  // Buscar em saídas
+979	  const saidasFiltradas = saidas.filter(s =>
+980	    s.nome.toLowerCase().includes(termo) ||
+981	    s.codigo.toLowerCase().includes(termo)
+982	  );
+983	  
+984	  const totalResultados = produtosFiltrados.length + entradasFiltradas.length + saidasFiltradas.length;
+985	  
+986	  if (totalResultados === 0) {
+987	    mostrarNotificacao('Nenhum resultado para: "' + termo + '"', 'info');
+988	  } else {
+989	    mostrarNotificacao(`${totalResultados} resultado(s) encontrado(s) - Produtos: ${produtosFiltrados.length} | Entradas: ${entradasFiltradas.length} | Saídas: ${saidasFiltradas.length}`, 'info');
+990	  }
+991	  
+992	  // Atualizar tabela de produtos
+993	  const tbodyProdutos = document.getElementById('tabela-produtos');
+994	  if (tbodyProdutos) {
+995	    tbodyProdutos.innerHTML = '';
+996	    produtosFiltrados.forEach(p => {
+997	      const row = document.createElement('tr');
+998	      row.innerHTML = `
+999	        <td>${p.id}</td>
+1000	        <td><strong>${p.codigo}</strong></td>
+1001	        <td>${p.nome}</td>
+1002	        <td>${p.estoque}</td>
+1003	        <td>
+1004	          <button class="action-btn edit-btn" onclick="editarProduto(${p.id})">✎ Editar</button>
+1005	          <button class="action-btn delete-btn" onclick="deletarProduto(${p.id})">✕ Deletar</button>
+1006	        </td>
+1007	      `;
+1008	      tbodyProdutos.appendChild(row);
+1009	    });
+1010	  }
+1011	  
+1012	  // Atualizar tabela de entradas
+1013	  const tbodyEntradas = document.getElementById('tabela-entradas');
+1014	  if (tbodyEntradas) {
+1015	    tbodyEntradas.innerHTML = '';
+1016	    entradasFiltradas.forEach(e => {
+1017	      const row = document.createElement('tr');
+1018	      row.innerHTML = `
+1019	        <td>${e.id}</td>
+1020	        <td>${e.codigo}</td>
+1021	        <td>${e.nome}</td>
+1022	        <td>${e.quantidade}</td>
+1023	        <td>${e.data}</td>
+1024	        <td>${e.hora}</td>
+1025	        <td>
+1026	          <button class="action-btn edit-btn" onclick="editarEntrada(${e.id})">✎ Editar</button>
+1027	          <button class="action-btn delete-btn" onclick="deletarEntrada(${e.id})">✕ Deletar</button>
+1028	        </td>
+1029	      `;
+1030	      tbodyEntradas.appendChild(row);
+1031	    });
+1032	  }
+1033	  
+1034	  // Atualizar tabela de saídas
+1035	  const tBodySaidas = document.getElementById('tabela-saidas');
+1036	  if (tBodySaidas) {
+1037	    tBodySaidas.innerHTML = '';
+1038	    saidasFiltradas.forEach(s => {
+1039	      const row = document.createElement('tr');
+1040	      row.innerHTML = `
+1041	        <td>${s.id}</td>
+1042	        <td>${s.codigo}</td>
+1043	        <td>${s.nome}</td>
+1044	        <td>${s.quantidade}</td>
+1045	        <td>${s.data}</td>
+1046	        <td>${s.hora}</td>
+1047	        <td>
+1048	          <button class="action-btn edit-btn" onclick="editarSaida(${s.id})">✎ Editar</button>
+1049	          <button class="action-btn delete-btn" onclick="deletarSaida(${s.id})">✕ Deletar</button>
+1050	        </td>
+1051	      `;
+1052	      tBodySaidas.appendChild(row);
+1053	    });
+1054	  }
+1055	}
+1056	
+1057	// ===== EXPORTAÇÃO PDF =====
+1058	function exportarPDF() {
+1059	  const tabela = document.getElementById('tabela-entradas');
+1060	  if (!tabela) {
+1061	    mostrarNotificacao('Tabela não encontrada', 'error');
+1062	    return;
+1063	  }
+1064	  
+1065	  try {
+1066	    // Criar elemento para o PDF
+1067	    const element = document.createElement('div');
+1068	    element.style.padding = '20px';
+1069	    element.innerHTML = `
+1070	      <h1 style="text-align: center; margin-bottom: 10px;">CONTROLE DE ESTOQUE</h1>
+1071	      <h2 style="text-align: center; margin-bottom: 10px;">ENTRADAS</h2>
+1072	      <p style="text-align: center; margin-bottom: 20px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
+1073	      ${tabela.outerHTML}
+1074	    `;
+1075	    
+1076	    // Opções do html2pdf
+1077	    const options = {
+1078	      margin: 10,
+1079	      filename: `entradas_${new Date().getTime()}.pdf`,
+1080	      image: { type: 'jpeg', quality: 0.98 },
+1081	      html2canvas: { scale: 2 },
+1082	      jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+1083	    };
+1084	    
+1085	    // Gerar PDF
+1086	    html2pdf().set(options).from(element).save();
+1087	    mostrarNotificacao('PDF de entradas gerado com sucesso!', 'success');
+1088	  } catch (erro) {
+1089	    console.error('Erro ao gerar PDF:', erro);
+1090	    mostrarNotificacao('Erro ao gerar PDF. Tente novamente.', 'error');
+1091	  }
+1092	}
+1093	
+1094	function exportarPDFSaida() {
+1095	  const tabela = document.getElementById('tabela-saidas');
+1096	  if (!tabela) {
+1097	    mostrarNotificacao('Tabela não encontrada', 'error');
+1098	    return;
+1099	  }
+1100	  
+1101	  try {
+1102	    // Criar elemento para o PDF
+1103	    const element = document.createElement('div');
+1104	    element.style.padding = '20px';
+1105	    element.innerHTML = `
+1106	      <h1 style="text-align: center; margin-bottom: 10px;">CONTROLE DE ESTOQUE</h1>
+1107	      <h2 style="text-align: center; margin-bottom: 10px;">SAÍDAS</h2>
+1108	      <p style="text-align: center; margin-bottom: 20px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
+1109	      ${tabela.outerHTML}
+1110	    `;
+1111	    
+1112	    // Opções do html2pdf
+1113	    const options = {
+1114	      margin: 10,
+1115	      filename: `saidas_${new Date().getTime()}.pdf`,
+1116	      image: { type: 'jpeg', quality: 0.98 },
+1117	      html2canvas: { scale: 2 },
+1118	      jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+1119	    };
+1120	    
+1121	    // Gerar PDF
+1122	    html2pdf().set(options).from(element).save();
+1123	    mostrarNotificacao('PDF de saídas gerado com sucesso!', 'success');
+1124	  } catch (erro) {
+1125	    console.error('Erro ao gerar PDF:', erro);
+1126	    mostrarNotificacao('Erro ao gerar PDF. Tente novamente.', 'error');
+1127	  }
+1128	}
+1129	
+1130	// ===== EXPORTAÇÃO EXCEL =====
+1131	function exportarExcel() {
+1132	  const tabela = document.getElementById('tabela-entradas');
+1133	  if (!tabela) {
+1134	    mostrarNotificacao('Tabela não encontrada', 'error');
+1135	    return;
+1136	  }
+1137	  
+1138	  // Converter tabela para array
+1139	  let dados = [];
+1140	  const headers = [];
+1141	  
+1142	  // Headers
+1143	  tabela.querySelectorAll('thead th').forEach(header => {
+1144	    headers.push(header.textContent.trim());
+1145	  });
+1146	  dados.push(headers);
+1147	  
+1148	  // Dados
+1149	  tabela.querySelectorAll('tbody tr').forEach(row => {
+1150	    const rowData = [];
+1151	    row.querySelectorAll('td').forEach((cell, index) => {
+1152	      if (index < headers.length) {
+1153	        rowData.push(cell.textContent.trim());
+1154	      }
+1155	    });
+1156	    if (rowData.length > 0) dados.push(rowData);
+1157	  });
+1158	  
+1159	  // Criar workbook
+1160	  const worksheet = XLSX.utils.aoa_to_sheet(dados);
+1161	  const workbook = XLSX.utils.book_new();
+1162	  XLSX.utils.book_append_sheet(workbook, worksheet, 'Entradas');
+1163	  
+1164	  // Salvar
+1165	  XLSX.writeFile(workbook, `entradas_${new Date().getTime()}.xlsx`);
+1166	  mostrarNotificacao('Arquivo Excel de entradas gerado com sucesso!', 'success');
+1167	}
+1168	
+1169	function exportarExcelSaida() {
+1170	  const tabela = document.getElementById('tabela-saidas');
+1171	  if (!tabela) {
+1172	    mostrarNotificacao('Tabela não encontrada', 'error');
+1173	    return;
+1174	  }
+1175	  
+1176	  // Converter tabela para array
+1177	  let dados = [];
+1178	  const headers = [];
+1179	  
+1180	  // Headers
+1181	  tabela.querySelectorAll('thead th').forEach(header => {
+1182	    headers.push(header.textContent.trim());
+1183	  });
+1184	  dados.push(headers);
+1185	  
+1186	  // Dados
+1187	  tabela.querySelectorAll('tbody tr').forEach(row => {
+1188	    const rowData = [];
+1189	    row.querySelectorAll('td').forEach((cell, index) => {
+1190	      if (index < headers.length) {
+1191	        rowData.push(cell.textContent.trim());
+1192	      }
+1193	    });
+1194	    if (rowData.length > 0) dados.push(rowData);
+1195	  });
+1196	  
+1197	  // Criar workbook
+1198	  const worksheet = XLSX.utils.aoa_to_sheet(dados);
+1199	  const workbook = XLSX.utils.book_new();
+1200	  XLSX.utils.book_append_sheet(workbook, worksheet, 'Saídas');
+1201	  
+1202	  // Salvar
+1203	  XLSX.writeFile(workbook, `saidas_${new Date().getTime()}.xlsx`);
+1204	  mostrarNotificacao('Arquivo Excel de saídas gerado com sucesso!', 'success');
+1205	}
+
