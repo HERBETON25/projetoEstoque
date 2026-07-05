@@ -735,7 +735,7 @@ body.dark-mode .filter-group select {
   padding: 15px;
   border-bottom: 1px solid #f0f0f0;
   font-size: 14px;
-  color: var(--text-color);
+  color: var(--bg-color);
 }
 
 body.dark-mode .data-table td {
