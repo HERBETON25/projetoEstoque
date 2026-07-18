@@ -241,6 +241,7 @@ function setupAtalhosTeclado() {
       document.getElementById('modal-edicao-entrada')?.style.display === 'flex' && cancelarEdicaoEntrada();
       document.getElementById('modal-edicao-saida')?.style.display === 'flex' && cancelarEdicaoSaida();
       document.getElementById('modal-confirmacao')?.style.display === 'flex' && cancelarConfirmacao();
+      document.querySelector('.sidebar.mobile-open') && fecharMenuMobile();
     }
     
     // Ctrl+S para salvar (previne o comportamento padrão)
@@ -349,6 +350,16 @@ function cancelarConfirmacao() {
 }
 
 // ===== MENU =====
+function abrirMenuMobile() {
+  document.querySelector('.sidebar')?.classList.add('mobile-open');
+  document.getElementById('sidebar-overlay')?.classList.add('active');
+}
+
+function fecharMenuMobile() {
+  document.querySelector('.sidebar')?.classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay')?.classList.remove('active');
+}
+
 function setupMenuEventListeners() {
   const menuItems = document.querySelectorAll('.menu-item');
   console.log('Total de itens de menu encontrados:', menuItems.length);
@@ -366,6 +377,9 @@ function setupMenuEventListeners() {
         // Atualizar menu ativo
         menuItems.forEach(m => m.classList.remove('active'));
         this.classList.add('active');
+
+        // Fechar a gaveta do menu no mobile após escolher uma página
+        fecharMenuMobile();
       }
     });
   });
@@ -1583,20 +1597,50 @@ function importarBackup(event) {
       pedirConfirmacao(
         'Tem certeza que deseja restaurar este backup? Os dados atuais serão substituídos.',
         () => {
-          produtos = backup.produtos || [];
-          entradas = backup.entradas || [];
-          saidas = backup.saidas || [];
-          proximoIdProduto = backup.proximoIdProduto || 1;
-          
-          salvarDados();
-          atualizarTabelaProdutos();
-          atualizarTabelaEntradas();
-          atualizarTabelaSaidas();
-          preencherSelects();
-          carregarDashboard();
-          
-          mostrarNotificacao('Backup restaurado com sucesso!', 'success');
-          event.target.value = '';
+          try {
+            // Limpar tabelas atuais do banco SQLite
+            db.run('DELETE FROM produtos');
+            db.run('DELETE FROM entradas');
+            db.run('DELETE FROM saidas');
+
+            // Reinserir os dados do backup diretamente no banco
+            (backup.produtos || []).forEach(produto => {
+              db.run(
+                'INSERT INTO produtos (id, codigo, nome, estoque, valorUnitario) VALUES (?, ?, ?, ?, ?)',
+                [produto.id, produto.codigo, produto.nome, produto.estoque, produto.valorUnitario || 0]
+              );
+            });
+
+            (backup.entradas || []).forEach(entrada => {
+              db.run(
+                'INSERT INTO entradas (id, codigo, nome, quantidade, data, hora) VALUES (?, ?, ?, ?, ?, ?)',
+                [entrada.id, entrada.codigo, entrada.nome, entrada.quantidade, entrada.data, entrada.hora]
+              );
+            });
+
+            (backup.saidas || []).forEach(saida => {
+              db.run(
+                'INSERT INTO saidas (id, codigo, nome, quantidade, data, hora) VALUES (?, ?, ?, ?, ?, ?)',
+                [saida.id, saida.codigo, saida.nome, saida.quantidade, saida.data, saida.hora]
+              );
+            });
+
+            proximoIdProduto = backup.proximoIdProduto || 1;
+
+            salvarDados();
+            atualizarTabelaProdutos();
+            atualizarTabelaEntradas();
+            atualizarTabelaSaidas();
+            preencherSelects();
+            carregarDashboard();
+
+            mostrarNotificacao('Backup restaurado com sucesso!', 'success');
+          } catch (erroRestauracao) {
+            console.error('Erro ao restaurar backup:', erroRestauracao);
+            mostrarNotificacao('Erro ao restaurar backup. Verifique o arquivo.', 'error');
+          } finally {
+            event.target.value = '';
+          }
         }
       );
     } catch (erro) {

@@ -132,6 +132,9 @@
   </div>
 
   <div class="container-main">
+    <!-- OVERLAY DO MENU MOBILE -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="fecharMenuMobile()"></div>
+
     <!-- MENU LATERAL -->
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -140,31 +143,31 @@
           <button class="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar tema">
             <i class="fas fa-moon"></i>
           </button>
-          <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+          <button class="menu-toggle" onclick="fecharMenuMobile()" title="Fechar menu"><i class="fas fa-times"></i></button>
         </div>
       </div>
       
       <nav class="sidebar-menu">
         <a href="#" class="menu-item active" data-page="dashboard">
-          <i class="fas fa-chart-line"></i> Painel de controle
+          <i class="fas fa-chart-line"></i> <span>Painel de controle</span>
         </a>
         <a href="#" class="menu-item" data-page="produtos">
-          <i class="fas fa-box"></i> Produtos
+          <i class="fas fa-box"></i> <span>Produtos</span>
         </a>
         <a href="#" class="menu-item" data-page="entradas">
-          <i class="fas fa-arrow-down"></i> Entradas
+          <i class="fas fa-arrow-down"></i> <span>Entradas</span>
         </a>
         <a href="#" class="menu-item" data-page="filtro-entradas">
-          <i class="fas fa-filter"></i> Filtro Entradas
+          <i class="fas fa-filter"></i> <span>Filtro Entradas</span>
         </a>
         <a href="#" class="menu-item" data-page="saidas">
-          <i class="fas fa-arrow-up"></i> Saídas
+          <i class="fas fa-arrow-up"></i> <span>Saídas</span>
         </a>
         <a href="#" class="menu-item" data-page="filtro-saidas">
-          <i class="fas fa-filter"></i> Filtro Saídas
+          <i class="fas fa-filter"></i> <span>Filtro Saídas</span>
         </a>
         <a href="#" class="menu-item" data-page="relatorio">
-          <i class="fas fa-file-alt"></i> Relatório
+          <i class="fas fa-file-alt"></i> <span>Relatório</span>
         </a>
       </nav>
 
@@ -175,6 +178,10 @@
 
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="main-content">
+      <!-- BOTÃO PARA ABRIR O MENU NO MOBILE -->
+      <button class="mobile-menu-btn" onclick="abrirMenuMobile()" title="Abrir menu">
+        <i class="fas fa-bars"></i>
+      </button>
       <!-- BARRA DE BUSCA GLOBAL -->
       <div class="search-bar">
         <input type="text" id="busca-global" placeholder="🔍 Buscar produto, código ou data..." onkeyup="buscarGlobal()">
